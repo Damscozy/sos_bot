@@ -35,6 +35,12 @@ class EmergencyService {
     // 4. (Async) Trigger automated outbound calls to emergency contacts
     this.triggerEmergencyCalls(phone, location, event.id);
 
+    // 5. Send Template-based SOS confirmation to the user
+    await this.sendTemplateMessage(phone, {
+      "1": event.id.toString(),
+      "2": new Date().toLocaleTimeString()
+    });
+
     return { 
       eventId: event.id, 
       meetingLink 
@@ -116,6 +122,32 @@ class EmergencyService {
       return data;
     } catch (error) {
       console.error('Emergency Message Delivery Failure:', error);
+    }
+  }
+
+  /**
+   * Sends a structured WhatsApp Template message via Twilio Content API.
+   * Based on template: HXb5b62575e6e4ff6129ad7c8efe1f983e
+   * @param {string} phone 
+   * @param {object} variables { "1": "Value1", "2": "Value2" }
+   */
+  async sendTemplateMessage(phone, variables) {
+    if (!this.client) {
+      console.error('Twilio Client not initialized. Cannot send template.');
+      return;
+    }
+
+    try {
+      const message = await this.client.messages.create({
+        from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+        to: `whatsapp:${phone.startsWith('+') ? phone : '+' + phone}`,
+        contentSid: process.env.TWILIO_CONTENT_SID,
+        contentVariables: JSON.stringify(variables)
+      });
+      console.log(`Template message sent: ${message.sid}`);
+      return message;
+    } catch (error) {
+      console.error('Twilio Template Delivery Failure:', error);
     }
   }
 }
